@@ -62,7 +62,8 @@ class Tensor:
                     return pair[1]
 
         if self.grad is None:
-            self.grad = dict(gs)
+            self.grad = {key: np.zeros(self.data.shape[1]) \
+                for key in range(self.data.shape[1])}
         else:
             assert type(self.grad) is dict
             for key in self.grad.keys():
