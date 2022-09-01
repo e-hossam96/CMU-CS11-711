@@ -56,18 +56,15 @@ class Tensor:
 
     # accumulate grad sparsely; note: only for D2 lookup matrix!
     def accumulate_grad_sparse(self, gs: List[Tuple[int, xp.ndarray]]) -> None:
-        def find_value(key):
-            for pair in gs:
-                if pair[0] == key:
-                    return pair[1]
-
         if self.grad is None:
             self.grad = {key: np.zeros(self.data.shape[1]) \
-                for key in range(self.data.shape[1])}
+                for key in range(self.data.shape[0])}
+            for pair in gs:
+                self.grad[pair[0]] += pair[1]
         else:
             assert type(self.grad) is dict
-            for key in self.grad.keys():
-                self.grad[key] += find_value(key)
+            for pair in gs:
+                self.grad[pair[0]] += pair[1]
         # raise NotImplementedError
 
     # get dense grad
@@ -180,7 +177,9 @@ class Initializer:
 
     @staticmethod
     def xavier_uniform(shape: Sequence[int], gain=1.0):
-        raise NotImplementedError
+        limit = math.sqrt(6 / (shape[0] + shape[1]))
+        return np.random.uniform(-limit, limit, shape) * gain
+        # raise NotImplementedError
 
 # Model: collection of parameters
 class Model:
@@ -247,7 +246,30 @@ class SGDTrainer(Trainer):
 
 class MomentumTrainer(Trainer):
     def __init__(self, model: Model, lrate=0.1, mrate=0.99):
-        raise NotImplementedError
+        # raise NotImplementedError
+        super().__init__(model)
+        self.lrate = lrate
+        self.mrate = mrate
+    
+    def update(self):
+        lrate = self.lrate
+        mrate = self.mrate
+        for p in self.model.params:
+            if p.grad is not None:
+                if isinstance(p.grad, dict):  # sparsely update to save time!
+                    self.update_sparse(p, p.grad, lrate)
+                else:
+                    self.update_dense(p, p.grad, lrate)
+            # clean grad
+            p.grad = None
+        # --
+
+    def update_dense(self, p: Parameter, g: xp.ndarray, lrate: float):
+        p.data -= lrate * g
+
+    def update_sparse(self, p: Parameter, gs: Dict[int, xp.ndarray], lrate: float):
+        for widx, arr in gs.items():
+            p.data[widx] -= lrate * arr
 
 # --
 
