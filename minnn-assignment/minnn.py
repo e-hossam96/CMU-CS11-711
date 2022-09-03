@@ -250,6 +250,8 @@ class MomentumTrainer(Trainer):
         super().__init__(model)
         self.lrate = lrate
         self.mrate = mrate
+        self.m = 0.0
+        self.flag = False
     
     def update(self):
         lrate = self.lrate
@@ -257,19 +259,25 @@ class MomentumTrainer(Trainer):
         for p in self.model.params:
             if p.grad is not None:
                 if isinstance(p.grad, dict):  # sparsely update to save time!
-                    self.update_sparse(p, p.grad, lrate)
+                    self.update_sparse(p, p.grad, lrate, mrate)
                 else:
-                    self.update_dense(p, p.grad, lrate)
+                    self.update_dense(p, p.grad, lrate, mrate)
             # clean grad
             p.grad = None
         # --
 
-    def update_dense(self, p: Parameter, g: xp.ndarray, lrate: float):
-        p.data -= lrate * g
+    def update_dense(self, p: Parameter, g: xp.ndarray, lrate: float, mrate: float):
+        self.m = mrate * self.m + (1 - mrate) * g
+        p.data -= lrate * self.m
 
-    def update_sparse(self, p: Parameter, gs: Dict[int, xp.ndarray], lrate: float):
+    def update_sparse(self, p: Parameter, gs: Dict[int, xp.ndarray], \
+        lrate: float, mrate: float):
+        if not self.flag:
+            self.m = np.zeros(p.data.shape)
+            self.flag = True
         for widx, arr in gs.items():
-            p.data[widx] -= lrate * arr
+            self.m[widx] = mrate * self.m[widx] + (1 - mrate) * arr
+            p.data[widx] -= lrate * self.m[widx]
 
 # --
 
