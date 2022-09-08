@@ -251,39 +251,31 @@ class MomentumTrainer(Trainer):
         super().__init__(model)
         self.lrate = lrate
         self.mrate = mrate
-        self.m = 0.0
-        self.flag = False
+        self.velocity = {}
     
     def update(self):
-        lrate = self.lrate
-        mrate = self.mrate
         for p in self.model.params:
+            if p not in self.velocity.keys():
+                self.velocity[p] = xp.zeros(p.data.shape)
             if p.grad is not None:
                 if isinstance(p.grad, dict):  # sparsely update to save time!
-                    self.update_sparse(p, p.grad, lrate, mrate)
+                    self.velocity[p] = self.update_sparse(p, self.lrate, self.mrate, self.velocity[p])
                 else:
-                    self.update_dense(p, p.grad, lrate, mrate)
+                    self.velocity[p] = self.update_dense(p, self.lrate, self.mrate, self.velocity[p])
             # clean grad
             p.grad = None
         # --
 
-    def update_dense(self, p: Parameter, g: xp.ndarray, lrate: float, mrate: float):
-        try:
-            print('self.m', self.m.shape)
-        except:
-            print('self.m', self.m)
-        print('g', g.shape)
-        self.m = (mrate * self.m) + ((1 - mrate) * g)
-        p.data -= lrate * self.m
+    def update_dense(self, p: Parameter, lrate: float, mrate: float, velocity: xp.array):
+        velocity = (mrate * velocity) + ((1 - mrate) * p.grad)
+        p.data -= lrate * velocity
+        return velocity
 
-    def update_sparse(self, p: Parameter, gs: Dict[int, xp.ndarray], \
-        lrate: float, mrate: float):
-        if not self.flag:
-            self.m = np.zeros(p.data.shape)
-            self.flag = True
-        for widx, arr in gs.items():
-            self.m[widx] = mrate * self.m[widx] + (1 - mrate) * arr
-            p.data[widx] -= lrate * self.m[widx]
+    def update_sparse(self, p: Parameter, lrate: float, mrate: float, velocity: xp.array):
+        for widx, arr in p.grad.items():
+            velocity[widx] = mrate * velocity[widx] + (1 - mrate) * arr
+            p.data[widx] -= lrate * velocity[widx]
+        return velocity
 
 # --
 

@@ -81,6 +81,7 @@ def main():
     b_sm = model.add_parameters((ntags))  # Softmax bias
     pooling_f = {"sum": mn.sum, "avg": mn.avg, "max": mn.max}[args.pooling_method]
 
+
     # A function to calculate scores for one value
     def calc_scores(words, is_training):
         # word drop in training
