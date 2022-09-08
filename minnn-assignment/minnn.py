@@ -2,6 +2,7 @@
 
 # a simple and naive implementation for minnn
 
+from re import T
 from typing import List, Tuple, Sequence, Union, Any, Dict
 import math
 import os
@@ -267,7 +268,12 @@ class MomentumTrainer(Trainer):
         # --
 
     def update_dense(self, p: Parameter, g: xp.ndarray, lrate: float, mrate: float):
-        self.m = mrate * self.m + (1 - mrate) * g
+        try:
+            print('self.m', self.m.shape)
+        except:
+            print('self.m', self.m)
+        print('g', g.shape)
+        self.m = (mrate * self.m) + ((1 - mrate) * g)
         p.data -= lrate * self.m
 
     def update_sparse(self, p: Parameter, gs: Dict[int, xp.ndarray], \
@@ -313,7 +319,28 @@ def log_softmax(x: xp.ndarray, axis=-1):
 
 class OpLookup(Op):
     def __init__(self):
-        raise NotImplementedError
+        super().__init__()
+        # raise NotImplementedError
+
+    def forward(self, t: Tensor, wn: List) -> Tensor:
+        embeddings = astensor(t.data[wn])
+        self.store_ctx(t=t, embed=embeddings, wn=wn)
+        return embeddings
+
+    def backward(self):
+        t, embed, wn = self.get_ctx('t', 'embed', 'wn')
+        if embed.grad is not None:
+            wn = list(set(wn))
+            grad = np.zeros(t.data.shape)
+            grad[wn] = 1
+            # print(grad)
+            # g0 = embed.grad * grad
+            # print(g0)
+            g = t.data * grad
+            # print(g)
+            t.accumulate_grad(g)
+            # print(t.get_dense_grad())
+
 
 class OpSum(Op):
     def __init__(self):
@@ -337,20 +364,70 @@ class OpSum(Op):
 
 class OpMax(Op):
     def __init__(self):
-        raise NotImplementedError
+        # raise NotImplementedError
+        super().__init__()
+
+    def forward(self, t: Tensor, dim: int):
+        mx = astensor(np.max(t.data, dim))
+        self.store_ctx(t=t, mx=mx, dim=dim)
+        return mx
+
+    def backward(self):
+        t, mx, dim = self.get_ctx('t', 'mx', 'dim')
+        if mx.grad is not None:
+            g = np.where(t.data == mx.data, 1, 0)
+            t.accumulate_grad(g * mx.grad.reshape(1, -1))
+
 
 class OpAvg(Op):
     # NOTE: Implementation of OpAvg is optional, it can be skipped if you wish
     def __init__(self):
         super().__init__()
 
+    def forward(self, t: Tensor, dim: int):
+        avg = astensor(np.average(t.data, dim))
+        self.store_ctx(t=t, avg=avg, dim=dim)
+        return avg
+    
+    def backward(self):
+        t, avg, dim = self.get_ctx('t', 'avg', 'dim')
+        if avg.grad is not None:
+            od = int(not(dim))
+            num_vals = t.shape[dim]
+            # g = t.data / num_vals
+            g = xp.ones(t.shape) / num_vals
+            t.accumulate_grad(g * avg.grad.reshape(1, -1))
+
 class OpDot(Op):
     def __init__(self):
-        raise NotImplementedError
+        # raise NotImplementedError
+        super().__init__()
+
+    def forward(self, w: Tensor, v: Tensor):
+        output = astensor(np.dot(w.data, v.data))
+        self.store_ctx(w=w, v=v, output=output)
+        return output
+
+    def backward(self):
+        w, v, output = self.get_ctx('w', 'v', 'output')
+        if output.grad is not None:
+            w.accumulate_grad(output.grad.reshape(1, -1).T * \
+                v.data.reshape(1, -1))
+            v.accumulate_grad(xp.dot(output.grad, w.data))
 
 class OpTanh(Op):
     def __init__(self):
-        raise NotImplementedError
+        # raise NotImplementedError
+        super().__init__()
+
+    def forward(self, t: Tensor):
+        out = astensor(xp.tanh(t.data))
+        self.store_ctx(tin=t, tout=out)
+        return out
+
+    def backward(self):
+        tin, tout = self.get_ctx('tin', 'tout')
+        tin.accumulate_grad((1 - tout.data ** 2) * tout.grad)
 
 class OpRelu(Op):
     def __init__(self):
