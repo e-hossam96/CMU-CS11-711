@@ -38,12 +38,20 @@ class BertSentClassifier(torch.nn.Module):
                 param.requires_grad = True
 
         # todo
-        raise NotImplementedError
+        # raise NotImplementedError
+        self.linear = torch.nn.Linear(config.hidden_size, self.num_labels)
+        self.dropout = torch.nn.Dropout(config.hidden_dropout_prob)
+        
 
     def forward(self, input_ids, attention_mask):
         # todo
         # the final bert contextualize embedding is the hidden state of [CLS] token (the first token)
-        raise NotImplementedError
+        # raise NotImplementedError
+        output_dict = self.bert(input_ids, attention_mask)
+        cls = self.dropout(output_dict['pooler_output'])
+        cls = self.linear(cls)
+        logits = F.log_softmax(cls, dim=-1)
+        return logits
 
 # create a custom Dataset Class to be used for the dataloader
 class BertDataset(Dataset):
@@ -91,7 +99,7 @@ def create_data(filename, flag='train'):
     num_labels = {}
     data = []
 
-    with open(filename, 'r') as fp:
+    with open(filename, 'r', encoding = 'UTF-8') as fp:
         for line in fp:
             label, org_sent = line.split(' ||| ')
             sent = org_sent.lower().strip()
