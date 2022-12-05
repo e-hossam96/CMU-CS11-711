@@ -1,6 +1,6 @@
 # Advanced Natural Language Processing (CS11-711)
 
-Solutions of the assignments
+Solutions of the course assignments.
 
 ## Course objectives
 * Describe fundamental tasks in natural language processing.
