@@ -23,6 +23,7 @@ The main implementations is related to the `Transformer` architecture.
 This part is a replication of a scientific paper and will be provided in later work.
 
 ## Credits
+* Carnegie Mellon University (**CMU**), Language Technologies Institute (**LTI**)
 * Course [website](http://www.phontron.com/class/anlp2021/)
 * Instructors
   * Graham Neubig (gneubig@cs.cmu.edu)
