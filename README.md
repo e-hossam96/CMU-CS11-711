@@ -7,13 +7,15 @@ Solutions of the course assignments.
 * Describe modern approaches to solve these tasks.
 * Identify weaknesses and strengths of the proposed approaches.
 
-## Assignment-01 (Minimal Neural Network Toolkit)
+
+## Assignments
+### Assignment-01 (Minimal Neural Network Toolkit)
 * Implementing the base `Tensor` class.
 * Implementing differentiable operations for the `Computational Graph`.
 * Implementing `Momentum Training` feature for the optimizer.
 * Classification head and training loop provided in the skeleton code.
 
-## Assignment-02 (Minimal BERT Implementation)
+### Assignment-02 (Minimal BERT Implementation)
 The main implementations is related to the `Transformer` architecture.
 * Implementing the `self-attention` head.
 * Implementing the `normalization` layer.
